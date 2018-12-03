@@ -1,0 +1,39 @@
+< THE SYMBOL TABLE >  Sqrt8086.com  --  emu8086 assembler version: 4.08 
+===================================================================================================
+Name                     	Offset    	Size      	Type      	Segment   
+===================================================================================================
+READMSG1                 	00103     	1         	VAR       	(NOSEG)   
+READMSG2                 	00141     	1         	VAR       	(NOSEG)   
+LOADINGMSG               	00186     	1         	VAR       	(NOSEG)   
+RESULTMSG                	00195     	1         	VAR       	(NOSEG)   
+SOURCE                   	001AA     	2         	VAR       	(NOSEG)   
+APRX                     	001AC     	2         	VAR       	(NOSEG)   
+APRXBUFFER               	001AE     	2         	VAR       	(NOSEG)   
+APRXDEC                  	001B0     	2         	VAR       	(NOSEG)   
+APRXDECBUFFER            	001B2     	2         	VAR       	(NOSEG)   
+STACKTMP                 	001B4     	2         	VAR       	(NOSEG)   
+INPUTARRAY               	001B6     	1         	VAR       	(NOSEG)   
+CHARLENGTH               	001BC     	2         	VAR       	(NOSEG)   
+CODE                     	001BE     	-1        	LABEL     	(NOSEG)   
+READ                     	001E2     	-1        	LABEL     	(NOSEG)   
+READLOOP                 	0020C     	-1        	LABEL     	(NOSEG)   
+FNSHREAD                 	00221     	-1        	LABEL     	(NOSEG)   
+CONVERTLOOP              	0022B     	-1        	LABEL     	(NOSEG)   
+FNSHCONVERT              	0023B     	-1        	LABEL     	(NOSEG)   
+CALCSQRT                 	00242     	-1        	LABEL     	(NOSEG)   
+CALCLOOP                 	00253     	-1        	LABEL     	(NOSEG)   
+TESTDECIMAL              	00263     	-1        	LABEL     	(NOSEG)   
+CONTINUESQRT             	00269     	-1        	LABEL     	(NOSEG)   
+FNSHSQRT                 	002B7     	-1        	LABEL     	(NOSEG)   
+FNSHAVRGSQRT             	002C0     	-1        	LABEL     	(NOSEG)   
+PRINTSQRT                	002C5     	-1        	LABEL     	(NOSEG)   
+FNSHPRINTSQRT            	002EC     	-1        	LABEL     	(NOSEG)   
+PRINTNUMBER              	002ED     	-1        	LABEL     	(NOSEG)   
+PRINTONEDIGIT            	002F7     	-1        	LABEL     	(NOSEG)   
+PRINTTWODIGITS           	00301     	-1        	LABEL     	(NOSEG)   
+PRINTTHREEDIGITS         	00315     	-1        	LABEL     	(NOSEG)   
+PRINTCRLF                	0033A     	-1        	LABEL     	(NOSEG)   
+===================================================================================================
+[ 03-Dec-18  --  9:27:40 PM ] 
+< END >
+ 
