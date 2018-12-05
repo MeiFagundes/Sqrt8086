@@ -8,60 +8,60 @@ org 100h
 
 .DATA
 
-readMsg1 db "Type a number to calculate the SquareRoot of it (Max: 65025):$"
-readMsg2 db "* Decimal precision is not calculated for numbers greater than 654 *$"
+readMsg1 db "Type a number to calculate the SquareRoot of it (Max: 65534):$"
 loadingMsg db "Calculating...$"
 resultMsg db "Average SquareRoot: $"
-source dw 0
-aprx dw 0
-aprxBuffer dw 0
-aprxDec dw 0
-aprxDecBuffer dw 0
-stackTmp dw 0
+stackCacheLevel1 dw 0
+stackCacheLevel2 dw 0
 inputArray db 6 DUP(?)
-charLength dw 0
+precisionFactor dw 100
+charLength db 0
 
 
 .CODE
 
 call read
-mov source, ax
+mov bx, ax
 
-; Printing loadingMsg
-call printCRLF
-mov ah, 09
 lea dx, loadingMsg
-int 21h
-mov dx, 0
+call printS
 
-mov ax, source
+mov ax, bx
 call calcSqrt
 
-mov ax, aprx
-mov bx, aprxDec
-call printSqrt
+call printFloat
 
+call finish
+
+; Saves registers state
+saveState:
+    pop stackCacheLevel2
+    push ax
+    push bx
+    push cx
+    push dx
+    push stackCacheLevel2
 ret
 
 
+; Loads registers state    
+loadState:
+    pop stackCacheLevel2
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    push stackCacheLevel2
+ret
 
+
+; Reads a number from Cin with 5 characters max.
+;@returns: Number -> AX
 read:
-
-    pop stackTmp
+    pop stackCacheLevel1
     
-    ; Printing readMsg1
-    mov ah, 09
     lea dx, readMsg1
-    int 21h
-    mov dx, 0
-    
-    call printCRLF
-    
-    ; Printing readMsg2
-    mov ah, 09
-    lea dx, readMsg2
-    int 21h
-    mov dx, 0
+    call printS
     
     call printCRLF
     
@@ -92,7 +92,8 @@ read:
     fnshRead:
     
     lea si, inputArray
-    mov cx, charLength
+    xor cx, cx
+    mov cl, charLength
     mov dx, 0
     convertLoop:
     
@@ -110,116 +111,138 @@ read:
     fnshConvert:
     mov ax, dx
     
-    push stackTmp
+    push stackCacheLevel1
 ret
+
     
 ; Calculates the Sqrt of a 16 bit integer
-; @arg: source -> AX
+; @args: source -> AX
 ; @returns: integer result -> AX, decimal result -> BX 
 calcSqrt:
     
-    pop stackTmp
+    pop stackCacheLevel1
+    push ax ; Stack = source
     
     ; aprox = (source / 200) + 2
-    mov bx, 200
     xor dx, dx
+    mov bx, 200
     div bx
     add ax, 2
-    mov aprx, ax 
+    mov bx, ax
     
+    push ax ; Stack = aprx 
+    
+    
+    ; BX -> aprx 
+    ; CX -> source
     calcLoop:
-        mov dx, source
-        mov bx, aprx
+    
+        pop bx ; Stack = aprox(current)
+        pop cx ; Stack = source
         
-        ; If aprox == aproxBuffer it means that the squareroot of source 
-        ;  is a floating point number, which is not supported by the 8068
-        ;  and thus, can't be calculated precisely. 
-        cmp bx, aprxBuffer
-        je testDecimal
-        jmp continueSqrt
-        testDecimal:
-        cmp ax, aprxDecBuffer
+        ; If aprx == aprx(cache) it means that the squareroot of source 
+        ;   is a floating point number, which is not supported by the 8068
+        ;   and thus, can't be calculated precisely.
+        pop ax 
+        cmp bx, ax
         je fnshAvrgSqrt
-        continueSqrt:
-        mov aprxBuffer, bx
-        mov aprxDecBuffer, ax
         
-        ; checking if aprox² == source     
-        mov ax, bx
+        ; checking if aprx² == source     
+        mov ax, bx ; AX = aprx
         xor dx, dx
         mul bx
-        cmp ax, source
+        cmp ax, cx
         je fnshSqrt
         
-        ; aprox = ((source / aprox) + aprox) / 2       
-        mov ax, source
-        mov bx, aprx
+        push bx ; Cache of aprx to be compared in the next loop iteration
+        
+        ; aprx(BX) = ((source(CX) / aprx) + aprx) / 2
+        mov ax, cx ; AX = source
         xor dx, dx
         div bx
-        add ax, aprx
+        add ax, bx
         shr ax, 1
-        mov aprx, ax
+        mov bx, ax
         
-        mov dx, 100
+        push cx ; Stack = source
+        push bx ; Stack = aprx(current)
+        
+        ; Stack = aprx * 100
+        mov dx, precisionFactor
         mul dx
         push ax
         
         ; aprox = ((source * 100 / aprx) + aprx * 100) / 2
-        mov ax, source
-        mov dx, 100
-        mul dx ; source * 100
+        mov ax, precisionFactor
+        mul cx ; source * 100
         
-        xor dx, dx ; DX = 0
-        div bx ; (source * 100 / aprox)
+        div bx ; (source * 100 / aprx)
         mov cx, ax
         
-        mov ax, 100
-        xor dx, dx
-        mul bx ; (aprx * 100)
+        mov ax, precisionFactor
+        mul bx
         
         add ax, cx ; (source * 100 / aprx) + aprx * 100)
-        shr ax, 1 ; ((source * 100 / aprx) + aprx * 100) / 2
+        adc dx, 0  ; (source * 100 / aprx) + aprx * 100) + Carry
         
-        pop cx ; CX = aprx (current) * 100
-        sub ax, cx ; (((source * 100 / aprx) + aprx * 100) / 2) - aprx * 100
+        mov cx, 2 
+        div cx ; AX = ((source * 100 / aprx) + aprx * 100) / 2
         
-        mov aprxDec, ax
+        pop bx ; BX = aprx * 100 lower
+        
+        sub ax, bx ; AX = (((source * 100 / aprx) + aprx * 100) / 2) - aprx * 100
+        
+        pop bx ; BX = aprx
+        pop cx ; CX = source
+        pop dx ; DX = aprx(cache)
+        
+        push ax ; Stack = aprx(decimal)
+        push dx
+        push cx
+        push bx
     
     JMP calcLoop
     
     ; The result is an integer number
     fnshSqrt:
-    mov bx, 0
-    mov aprxDec, 0
+    mov ax, bx ; AX = aprox(Sqrt)
+    pop bx
+    mov bx, 0 ; BX = Sqrt(decimal)
+    push stackCacheLevel1
+    ret
     
     ; The result is the lower round of a floating point number
     fnshAvrgSqrt:
-    
-    
-    
-    push stackTmp
+    mov ax, bx ; AX = aprox(Sqrt)
+    pop bx ; BX = Sqrt(decimal)
+    push stackCacheLevel1
+    ret
 
+; Prints a String in Cout.
+; @args: String pointer -> DX    
+printS:
+
+    call printCRLF
+    mov ah, 09
+    int 21h
+    mov dx, 0
 ret
-    
-printSqrt:
+
+; Prints a 16Bit-Integer + 8Bit-Precision(decimal) Number
+;@args: Number -> AX, Precision -> BX     
+printFloat:
 
     push bx
     push ax
     
     call printCRLF
-    
-    mov ah, 09
     lea dx, resultMsg
-    int 21h
-    mov dx, 0
+    call printS
     
     pop ax
     pop bx
     
     call printNumber
-    
-    cmp source, 655
-    jae fnshPrintSqrt
     
     mov ah, 02
     mov dl, 46
@@ -228,11 +251,14 @@ printSqrt:
     mov ax, bx
     call printNumber
     
-    fnshPrintSqrt:
-    ret
+    fnshprintFloat:
+ret
     
-
+; Prints an Integer number.
+;@args: Number -> AX
 printNumber:
+
+    call saveState
 
     cmp ax, 100
     jae printThreeDigits
@@ -246,6 +272,8 @@ printNumber:
     mov dl, al
     add dl, 48
     int 21h
+    
+    call loadState
     ret
     
     ; 2 digits:
@@ -260,15 +288,14 @@ printNumber:
     mov dl, ch
     int 21h
     
-    
-    
     mov dl, cl
     int 21h
+    
+    call loadState
     ret
     
     ; 3 digits:
     printThreeDigits:
-    push bx
     
     aam
     mov dh, al
@@ -292,15 +319,25 @@ printNumber:
     mov dl, dh
     int 21h
     
-    pop bx     
+    call loadState     
     ret
 
 ; Printing CRLF (carriage return + line feed)
 printCRLF:
+
+    call saveState
 
     mov ah, 02
     mov dl, 13
     int 21h
     mov dl, 10
     int 21h
-    ret
+    
+    call loadState
+    
+ret
+
+; Closes the program
+finish:
+    mov ah, 4Ch
+    int 21h
