@@ -8,30 +8,48 @@ org 100h
 
 .DATA
 
-readMsg1 db "Type a number to calculate the SquareRoot of it (Max: 65534):$"
+readMsg db "Type a number to calculate the SquareRoot of it (Max: 65534):$"
+overflowMsg db "The number must be lower than 65534!$"
 loadingMsg db "Calculating...$"
 resultMsg db "Average SquareRoot: $"
+finishMsg db "Press any key to continue | Press ESC to exit:$"
 stackCacheLevel1 dw 0
 stackCacheLevel2 dw 0
 inputArray db 6 DUP(?)
 precisionFactor dw 100
-charLength db 0
 
 
 .CODE
 
+start:
+call clearScreen
+
 call read
-mov bx, ax
+
+mov cx, ax
+
+call verifyNumber
 
 lea dx, loadingMsg
-call printS
+call printString
 
-mov ax, bx
+mov ax, cx
+
 call calcSqrt
 
+mov cx, ax
+
+call printCRLF
+lea dx, resultMsg
+call printString
+
+mov ax, cx
 call printFloat
 
 call finish
+
+ret
+;call exit
 
 ; Saves registers state
 saveState:
@@ -60,8 +78,8 @@ ret
 read:
     pop stackCacheLevel1
     
-    lea dx, readMsg1
-    call printS
+    lea dx, readMsg
+    call printString
     
     call printCRLF
     
@@ -70,7 +88,7 @@ read:
     int 21h
     
     
-    
+    xor bx, bx
     lea si, inputArray
     mov cx, 6
     readLoop:
@@ -81,27 +99,25 @@ read:
         cmp al, 13
         je fnshRead
         
-        mov ah, 0
+        xor ah, ah
         sub al, 48
         mov [si], ax
         inc si
-        
-        inc charLength
+        inc bx ; BX = char length
         
     Loop readLoop:
     fnshRead:
     
     lea si, inputArray
-    xor cx, cx
-    mov cl, charLength
-    mov dx, 0
+    mov cx, bx
+    xor dx, dx
     convertLoop:
     
          mov ax, 10
          mul dx ; AX = DX * 10
          
          mov bx, [si]
-         mov bh, 0
+         xor bh, bh
          inc si
          add ax, bx ; AX = (DX * 10) + BX
          
@@ -121,6 +137,8 @@ ret
 calcSqrt:
     
     pop stackCacheLevel1
+    push 0
+    push 0
     push ax ; Stack = source
     
     ; aprox = (source / 200) + 2
@@ -154,7 +172,8 @@ calcSqrt:
         cmp ax, cx
         je fnshSqrt
         
-        push bx ; Cache of aprx to be compared in the next loop iteration
+        pop dx ; Clearing aprx(decimal) as result was not achieved
+        push bx ; Store cache of aprx to be compared in the next loop iteration
         
         ; aprx(BX) = ((source(CX) / aprx) + aprx) / 2
         mov ax, cx ; AX = source
@@ -207,20 +226,20 @@ calcSqrt:
     fnshSqrt:
     mov ax, bx ; AX = aprox(Sqrt)
     pop bx
-    mov bx, 0 ; BX = Sqrt(decimal)
+    xor bx, bx ; BX = Sqrt(decimal)
     push stackCacheLevel1
     ret
     
-    ; The result is the lower round of a floating point number
+    ; The result is a floating point number
     fnshAvrgSqrt:
     mov ax, bx ; AX = aprox(Sqrt)
     pop bx ; BX = Sqrt(decimal)
     push stackCacheLevel1
     ret
 
-; Prints a String in Cout.
+; printString a String in Cout.
 ; @args: String pointer -> DX    
-printS:
+printString:
 
     call printCRLF
     mov ah, 09
@@ -228,19 +247,9 @@ printS:
     mov dx, 0
 ret
 
-; Prints a 16Bit-Integer + 8Bit-Precision(decimal) Number
+; printString a 16Bit-Integer + 8Bit-Precision(decimal) Number
 ;@args: Number -> AX, Precision -> BX     
 printFloat:
-
-    push bx
-    push ax
-    
-    call printCRLF
-    lea dx, resultMsg
-    call printS
-    
-    pop ax
-    pop bx
     
     call printNumber
     
@@ -254,7 +263,7 @@ printFloat:
     fnshprintFloat:
 ret
     
-; Prints an Integer number.
+; printString an Integer number.
 ;@args: Number -> AX
 printNumber:
 
@@ -320,7 +329,21 @@ printNumber:
     int 21h
     
     call loadState     
-    ret
+ret
+    
+verifyNumber:
+
+    cmp ax, 65534
+    jbe continue
+    
+    ; Overflow:
+    lea dx, overflowMsg
+    call printString
+    call finish
+    
+    ; Continue:
+    continue:
+ret
 
 ; Printing CRLF (carriage return + line feed)
 printCRLF:
@@ -337,7 +360,23 @@ printCRLF:
     
 ret
 
-; Closes the program
+clearScreen:
+    xor ah, ah
+    mov al, 03h
+    int 10h
+ret
+
 finish:
+    lea dx, finishMsg
+    call printString
+    
+    mov ah, 01
+    int 21h
+    cmp al, 27
+    jne start
+ret 
+
+exit:
     mov ah, 4Ch
     int 21h
+ret

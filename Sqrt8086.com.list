@@ -2,7 +2,7 @@ EMU8086 GENERATED LISTING. MACHINE CODE <- SOURCE.
  
 Sqrt8086.com -- emu8086 assembler version: 4.08  
  
-[ 03-Dec-18  --  9:27:40 PM ] 
+[ 06-Dec-18  --  12:19:49 AM ] 
  
 ===================================================================================================
 [LINE]     LOC: MACHINE CODE                          SOURCE
@@ -16,317 +16,394 @@ Sqrt8086.com -- emu8086 assembler version: 4.08
 [   6]        :                                       
 [   7]        :                                       .STACK 512d
 [   8]        :                                       
-[   9]    0100: E9 BB 00                              .DATA
+[   9]    0100: E9 C2 00                              .DATA
 [  10]        :                                       
-[  11]    0103: 54 79 70 65 20 61 20 6E 75 6D 62 65   readMsg1 db "Type a number to calculate the SquareRoot of it (Max: 65025):$"
+[  11]    0103: 54 79 70 65 20 61 20 6E 75 6D 62 65   readMsg db "Type a number to calculate the SquareRoot of it (Max: 65534):$"
                 72 20 74 6F 20 63 61 6C 63 75 6C 61 
                 74 65 20 74 68 65 20 53 71 75 61 72 
                 65 52 6F 6F 74 20 6F 66 20 69 74 20 
-                28 4D 61 78 3A 20 36 35 30 32 35 29 
+                28 4D 61 78 3A 20 36 35 35 33 34 29 
                 3A 24                               
-[  12]    0141: 2A 20 44 65 63 69 6D 61 6C 20 70 72   readMsg2 db "* Decimal precision is not calculated for numbers greater than 654 *$"
-                65 63 69 73 69 6F 6E 20 69 73 20 6E 
-                6F 74 20 63 61 6C 63 75 6C 61 74 65 
-                64 20 66 6F 72 20 6E 75 6D 62 65 72 
-                73 20 67 72 65 61 74 65 72 20 74 68 
-                61 6E 20 36 35 34 20 2A 24          
-[  13]    0186: 43 61 6C 63 75 6C 61 74 69 6E 67 2E   loadingMsg db "Calculating...$"
+[  12]    0141: 54 68 65 20 6E 75 6D 62 65 72 20 6D   overflowMsg db "The number must be lower than 65534!$"
+                75 73 74 20 62 65 20 6C 6F 77 65 72 
+                20 74 68 61 6E 20 36 35 35 33 34 21 
+                24                                  
+[  13]    0166: 43 61 6C 63 75 6C 61 74 69 6E 67 2E   loadingMsg db "Calculating...$"
                 2E 2E 24                            
-[  14]    0195: 41 76 65 72 61 67 65 20 53 71 75 61   resultMsg db "Average SquareRoot: $"
+[  14]    0175: 41 76 65 72 61 67 65 20 53 71 75 61   resultMsg db "Average SquareRoot: $"
                 72 65 52 6F 6F 74 3A 20 24          
-[  15]    01AA: 00 00                                 source dw 0
-[  16]    01AC: 00 00                                 aprx dw 0
-[  17]    01AE: 00 00                                 aprxBuffer dw 0
-[  18]    01B0: 00 00                                 aprxDec dw 0
-[  19]    01B2: 00 00                                 aprxDecBuffer dw 0
-[  20]    01B4: 00 00                                 stackTmp dw 0
-[  21]    01B6: 00 00 00 00 00 00                     inputArray db 6 DUP(?)
-[  22]    01BC: 00 00                                 charLength dw 0
+[  15]    018A: 50 72 65 73 73 20 61 6E 79 20 6B 65   finishMsg db "Press any key to continue | Press ESC to exit:$"
+                79 20 74 6F 20 63 6F 6E 74 69 6E 75 
+                65 20 7C 20 50 72 65 73 73 20 45 53 
+                43 20 74 6F 20 65 78 69 74 3A 24    
+[  16]    01B9: 00 00                                 stackCacheLevel1 dw 0
+[  17]    01BB: 00 00                                 stackCacheLevel2 dw 0
+[  18]    01BD: 00 00 00 00 00 00                     inputArray db 6 DUP(?)
+[  19]    01C3: 64 00                                 precisionFactor dw 100
+[  20]        :                                       
+[  21]        :                                       
+[  22]    01C5:                                       .CODE
 [  23]        :                                       
-[  24]        :                                       
-[  25]    01BE:                                       .CODE
+[  24]    01C5:                                       start:
+[  25]    01C5: E8 91 01                              call clearScreen
 [  26]        :                                       
-[  27]    01BE: E8 21 00                              call read
-[  28]    01C1: A3 AA 01                              mov source, ax
-[  29]        :                                       
-[  30]        :                                       ; Printing loadingMsg
-[  31]    01C4: E8 73 01                              call printCRLF
-[  32]    01C7: B4 09                                 mov ah, 09
-[  33]    01C9: BA 86 01                              lea dx, loadingMsg
-[  34]    01CC: CD 21                                 int 21h
-[  35]    01CE: BA 00 00                              mov dx, 0
-[  36]        :                                       
-[  37]    01D1: A1 AA 01                              mov ax, source
-[  38]    01D4: E8 6B 00                              call calcSqrt
+[  27]    01C8: E8 3E 00                              call read
+[  28]        :                                       
+[  29]    01CB: 8B C8                                 mov cx, ax
+[  30]        :                                       
+[  31]    01CD: E8 69 01                              call verifyNumber
+[  32]        :                                       
+[  33]    01D0: BA 66 01                              lea dx, loadingMsg
+[  34]    01D3: E8 F2 00                              call printString
+[  35]        :                                       
+[  36]    01D6: 8B C1                                 mov ax, cx
+[  37]        :                                       
+[  38]    01D8: E8 79 00                              call calcSqrt
 [  39]        :                                       
-[  40]    01D7: A1 AC 01                              mov ax, aprx
-[  41]    01DA: 8B 1E B0 01                           mov bx, aprxDec
-[  42]    01DE: E8 E4 00                              call printSqrt
-[  43]        :                                       
-[  44]    01E1: C3                                    ret
+[  40]    01DB: 8B C8                                 mov cx, ax
+[  41]        :                                       
+[  42]    01DD: E8 68 01                              call printCRLF
+[  43]    01E0: BA 75 01                              lea dx, resultMsg
+[  44]    01E3: E8 E2 00                              call printString
 [  45]        :                                       
-[  46]        :                                       
-[  47]        :                                       
-[  48]    01E2:                                       read:
-[  49]        :                                       
-[  50]    01E2: 8F 06 B4 01                           pop stackTmp
-[  51]        :                                       
-[  52]        :                                       ; Printing readMsg1
-[  53]    01E6: B4 09                                 mov ah, 09
-[  54]    01E8: BA 03 01                              lea dx, readMsg1
-[  55]    01EB: CD 21                                 int 21h
-[  56]    01ED: BA 00 00                              mov dx, 0
-[  57]        :                                       
-[  58]    01F0: E8 47 01                              call printCRLF
-[  59]        :                                       
-[  60]        :                                       ; Printing readMsg2
-[  61]    01F3: B4 09                                 mov ah, 09
-[  62]    01F5: BA 41 01                              lea dx, readMsg2
-[  63]    01F8: CD 21                                 int 21h
-[  64]    01FA: BA 00 00                              mov dx, 0
-[  65]        :                                       
-[  66]    01FD: E8 3A 01                              call printCRLF
-[  67]        :                                       
-[  68]    0200: B4 02                                 mov ah, 02
-[  69]    0202: B2 29                                 mov dl, 41
-[  70]    0204: CD 21                                 int 21h
-[  71]        :                                       
-[  72]        :                                       
-[  73]        :                                       
-[  74]    0206: BE B6 01                              lea si, inputArray
-[  75]    0209: B9 06 00                              mov cx, 6
-[  76]    020C:                                       readLoop:
-[  77]        :                                       
-[  78]    020C: B4 01                                 mov ah, 01
-[  79]    020E: CD 21                                 int 21h
+[  46]    01E6: 8B C1                                 mov ax, cx
+[  47]    01E8: E8 E8 00                              call printFloat
+[  48]        :                                       
+[  49]    01EB: E8 72 01                              call finish
+[  50]        :                                       
+[  51]    01EE: C3                                    ret
+[  52]        :                                       ;call exit
+[  53]        :                                       
+[  54]        :                                       ; Saves registers state
+[  55]    01EF:                                       saveState:
+[  56]    01EF: 8F 06 BB 01                           pop stackCacheLevel2
+[  57]    01F3: 50                                    push ax
+[  58]    01F4: 53                                    push bx
+[  59]    01F5: 51                                    push cx
+[  60]    01F6: 52                                    push dx
+[  61]    01F7: FF 36 BB 01                           push stackCacheLevel2
+[  62]    01FB: C3                                    ret
+[  63]        :                                       
+[  64]        :                                       
+[  65]        :                                       ; Loads registers state
+[  66]    01FC:                                       loadState:
+[  67]    01FC: 8F 06 BB 01                           pop stackCacheLevel2
+[  68]    0200: 5A                                    pop dx
+[  69]    0201: 59                                    pop cx
+[  70]    0202: 5B                                    pop bx
+[  71]    0203: 58                                    pop ax
+[  72]    0204: FF 36 BB 01                           push stackCacheLevel2
+[  73]    0208: C3                                    ret
+[  74]        :                                       
+[  75]        :                                       
+[  76]        :                                       ; Reads a number from Cin with 5 characters max.
+[  77]        :                                       ;@returns: Number -> AX
+[  78]    0209:                                       read:
+[  79]    0209: 8F 06 B9 01                           pop stackCacheLevel1
 [  80]        :                                       
-[  81]    0210: 3C 0D                                 cmp al, 13
-[  82]    0212: 74 0D                                 je fnshRead
+[  81]    020D: BA 03 01                              lea dx, readMsg
+[  82]    0210: E8 B5 00                              call printString
 [  83]        :                                       
-[  84]    0214: B4 00                                 mov ah, 0
-[  85]    0216: 2C 30                                 sub al, 48
-[  86]    0218: 89 04                                 mov [si], ax
-[  87]    021A: 46                                    inc si
-[  88]        :                                       
-[  89]    021B: FF 06 BC 01                           inc charLength
+[  84]    0213: E8 32 01                              call printCRLF
+[  85]        :                                       
+[  86]    0216: B4 02                                 mov ah, 02
+[  87]    0218: B2 29                                 mov dl, 41
+[  88]    021A: CD 21                                 int 21h
+[  89]        :                                       
 [  90]        :                                       
-[  91]    021F: E2 EB                                 Loop readLoop:
-[  92]    0221:                                       fnshRead:
-[  93]        :                                       
-[  94]    0221: BE B6 01                              lea si, inputArray
-[  95]    0224: 8B 0E BC 01                           mov cx, charLength
-[  96]    0228: BA 00 00                              mov dx, 0
-[  97]    022B:                                       convertLoop:
+[  91]    021C: 33 DB                                 xor bx, bx
+[  92]    021E: BE BD 01                              lea si, inputArray
+[  93]    0221: B9 06 00                              mov cx, 6
+[  94]    0224:                                       readLoop:
+[  95]        :                                       
+[  96]    0224: B4 01                                 mov ah, 01
+[  97]    0226: CD 21                                 int 21h
 [  98]        :                                       
-[  99]    022B: B8 0A 00                              mov ax, 10
-[ 100]    022E: F7 E2                                 mul dx ; AX = DX * 10
+[  99]    0228: 3C 0D                                 cmp al, 13
+[ 100]    022A: 74 0A                                 je fnshRead
 [ 101]        :                                       
-[ 102]    0230: 8B 1C                                 mov bx, [si]
-[ 103]    0232: B7 00                                 mov bh, 0
-[ 104]    0234: 46                                    inc si
-[ 105]    0235: 03 C3                                 add ax, bx ; AX = (DX * 10) + BX
-[ 106]        :                                       
-[ 107]    0237: 8B D0                                 mov dx, ax
-[ 108]        :                                       
-[ 109]    0239: E2 F0                                 Loop convertLoop
-[ 110]    023B:                                       fnshConvert:
-[ 111]    023B: 8B C2                                 mov ax, dx
-[ 112]        :                                       
-[ 113]    023D: FF 36 B4 01                           push stackTmp
-[ 114]    0241: C3                                    ret
+[ 102]    022C: 32 E4                                 xor ah, ah
+[ 103]    022E: 2C 30                                 sub al, 48
+[ 104]    0230: 89 04                                 mov [si], ax
+[ 105]    0232: 46                                    inc si
+[ 106]    0233: 43                                    inc bx ; BX = char length
+[ 107]        :                                       
+[ 108]    0234: E2 EE                                 Loop readLoop:
+[ 109]    0236:                                       fnshRead:
+[ 110]        :                                       
+[ 111]    0236: BE BD 01                              lea si, inputArray
+[ 112]    0239: 8B CB                                 mov cx, bx
+[ 113]    023B: 33 D2                                 xor dx, dx
+[ 114]    023D:                                       convertLoop:
 [ 115]        :                                       
-[ 116]        :                                       ; Calculates the Sqrt of a 16 bit integer
-[ 117]        :                                       ; @arg: source -> AX
-[ 118]        :                                       ; @returns: integer result -> AX, decimal result -> BX
-[ 119]    0242:                                       calcSqrt:
-[ 120]        :                                       
-[ 121]    0242: 8F 06 B4 01                           pop stackTmp
-[ 122]        :                                       
-[ 123]        :                                       ; aprox = (source / 200) + 2
-[ 124]    0246: BB C8 00                              mov bx, 200
-[ 125]    0249: 33 D2                                 xor dx, dx
-[ 126]    024B: F7 F3                                 div bx
-[ 127]    024D: 05 02 00                              add ax, 2
-[ 128]    0250: A3 AC 01                              mov aprx, ax
+[ 116]    023D: B8 0A 00                              mov ax, 10
+[ 117]    0240: F7 E2                                 mul dx ; AX = DX * 10
+[ 118]        :                                       
+[ 119]    0242: 8B 1C                                 mov bx, [si]
+[ 120]    0244: 32 FF                                 xor bh, bh
+[ 121]    0246: 46                                    inc si
+[ 122]    0247: 03 C3                                 add ax, bx ; AX = (DX * 10) + BX
+[ 123]        :                                       
+[ 124]    0249: 8B D0                                 mov dx, ax
+[ 125]        :                                       
+[ 126]    024B: E2 F0                                 Loop convertLoop
+[ 127]    024D:                                       fnshConvert:
+[ 128]    024D: 8B C2                                 mov ax, dx
 [ 129]        :                                       
-[ 130]    0253:                                       calcLoop:
-[ 131]    0253: 8B 16 AA 01                           mov dx, source
-[ 132]    0257: 8B 1E AC 01                           mov bx, aprx
+[ 130]    024F: FF 36 B9 01                           push stackCacheLevel1
+[ 131]    0253: C3                                    ret
+[ 132]        :                                       
 [ 133]        :                                       
-[ 134]        :                                       ; If aprox == aproxBuffer it means that the squareroot of source
-[ 135]        :                                       ;  is a floating point number, which is not supported by the 8068
-[ 136]        :                                       ;  and thus, can't be calculated precisely.
-[ 137]    025B: 3B 1E AE 01                           cmp bx, aprxBuffer
-[ 138]    025F: 74 02                                 je testDecimal
-[ 139]    0261: EB 06                                 jmp continueSqrt
-[ 140]    0263:                                       testDecimal:
-[ 141]    0263: 3B 06 B2 01                           cmp ax, aprxDecBuffer
-[ 142]    0267: 74 57                                 je fnshAvrgSqrt
-[ 143]    0269:                                       continueSqrt:
-[ 144]    0269: 89 1E AE 01                           mov aprxBuffer, bx
-[ 145]    026D: A3 B2 01                              mov aprxDecBuffer, ax
-[ 146]        :                                       
-[ 147]        :                                       ; checking if aprox² == source
-[ 148]    0270: 8B C3                                 mov ax, bx
-[ 149]    0272: 33 D2                                 xor dx, dx
-[ 150]    0274: F7 E3                                 mul bx
-[ 151]    0276: 3B 06 AA 01                           cmp ax, source
-[ 152]    027A: 74 3B                                 je fnshSqrt
+[ 134]        :                                       ; Calculates the Sqrt of a 16 bit integer
+[ 135]        :                                       ; @args: source -> AX
+[ 136]        :                                       ; @returns: integer result -> AX, decimal result -> BX
+[ 137]    0254:                                       calcSqrt:
+[ 138]        :                                       
+[ 139]    0254: 8F 06 B9 01                           pop stackCacheLevel1
+[ 140]    0258: 6A 00                                 push 0
+[ 141]    025A: 6A 00                                 push 0
+[ 142]    025C: 50                                    push ax ; Stack = source
+[ 143]        :                                       
+[ 144]        :                                       ; aprox = (source / 200) + 2
+[ 145]    025D: 33 D2                                 xor dx, dx
+[ 146]    025F: BB C8 00                              mov bx, 200
+[ 147]    0262: F7 F3                                 div bx
+[ 148]    0264: 05 02 00                              add ax, 2
+[ 149]    0267: 8B D8                                 mov bx, ax
+[ 150]        :                                       
+[ 151]    0269: 50                                    push ax ; Stack = aprx
+[ 152]        :                                       
 [ 153]        :                                       
-[ 154]        :                                       ; aprox = ((source / aprox) + aprox) / 2
-[ 155]    027C: A1 AA 01                              mov ax, source
-[ 156]    027F: 8B 1E AC 01                           mov bx, aprx
-[ 157]    0283: 33 D2                                 xor dx, dx
-[ 158]    0285: F7 F3                                 div bx
-[ 159]    0287: 03 06 AC 01                           add ax, aprx
-[ 160]    028B: D1 E8                                 shr ax, 1
-[ 161]    028D: A3 AC 01                              mov aprx, ax
-[ 162]        :                                       
-[ 163]    0290: BA 64 00                              mov dx, 100
-[ 164]    0293: F7 E2                                 mul dx
-[ 165]    0295: 50                                    push ax
-[ 166]        :                                       
-[ 167]        :                                       ; aprox = ((source * 100 / aprx) + aprx * 100) / 2
-[ 168]    0296: A1 AA 01                              mov ax, source
-[ 169]    0299: BA 64 00                              mov dx, 100
-[ 170]    029C: F7 E2                                 mul dx ; source * 100
-[ 171]        :                                       
-[ 172]    029E: 33 D2                                 xor dx, dx ; DX = 0
-[ 173]    02A0: F7 F3                                 div bx ; (source * 100 / aprox)
-[ 174]    02A2: 8B C8                                 mov cx, ax
-[ 175]        :                                       
-[ 176]    02A4: B8 64 00                              mov ax, 100
-[ 177]    02A7: 33 D2                                 xor dx, dx
-[ 178]    02A9: F7 E3                                 mul bx ; (aprx * 100)
-[ 179]        :                                       
-[ 180]    02AB: 03 C1                                 add ax, cx ; (source * 100 / aprx) + aprx * 100)
-[ 181]    02AD: D1 E8                                 shr ax, 1 ; ((source * 100 / aprx) + aprx * 100) / 2
-[ 182]        :                                       
-[ 183]    02AF: 59                                    pop cx ; CX = aprx (current) * 100
-[ 184]    02B0: 2B C1                                 sub ax, cx ; (((source * 100 / aprx) + aprx * 100) / 2) - aprx * 100
+[ 154]        :                                       ; BX -> aprx
+[ 155]        :                                       ; CX -> source
+[ 156]    026A:                                       calcLoop:
+[ 157]        :                                       
+[ 158]    026A: 5B                                    pop bx ; Stack = aprox(current)
+[ 159]    026B: 59                                    pop cx ; Stack = source
+[ 160]        :                                       
+[ 161]        :                                       ; If aprx == aprx(cache) it means that the squareroot of source
+[ 162]        :                                       ;   is a floating point number, which is not supported by the 8068
+[ 163]        :                                       ;   and thus, can't be calculated precisely.
+[ 164]    026C: 58                                    pop ax
+[ 165]    026D: 3B D8                                 cmp bx, ax
+[ 166]    026F: 74 4F                                 je fnshAvrgSqrt
+[ 167]        :                                       
+[ 168]        :                                       ; checking if aprx² == source
+[ 169]    0271: 8B C3                                 mov ax, bx ; AX = aprx
+[ 170]    0273: 33 D2                                 xor dx, dx
+[ 171]    0275: F7 E3                                 mul bx
+[ 172]    0277: 3B C1                                 cmp ax, cx
+[ 173]    0279: 74 3B                                 je fnshSqrt
+[ 174]        :                                       
+[ 175]    027B: 5A                                    pop dx ; Clearing aprx(decimal) as result was not achieved
+[ 176]    027C: 53                                    push bx ; Store cache of aprx to be compared in the next loop iteration
+[ 177]        :                                       
+[ 178]        :                                       ; aprx(BX) = ((source(CX) / aprx) + aprx) / 2
+[ 179]    027D: 8B C1                                 mov ax, cx ; AX = source
+[ 180]    027F: 33 D2                                 xor dx, dx
+[ 181]    0281: F7 F3                                 div bx
+[ 182]    0283: 03 C3                                 add ax, bx
+[ 183]    0285: D1 E8                                 shr ax, 1
+[ 184]    0287: 8B D8                                 mov bx, ax
 [ 185]        :                                       
-[ 186]    02B2: A3 B0 01                              mov aprxDec, ax
-[ 187]        :                                       
-[ 188]    02B5: EB 9C                                 JMP calcLoop
-[ 189]        :                                       
-[ 190]        :                                       ; The result is an integer number
-[ 191]    02B7:                                       fnshSqrt:
-[ 192]    02B7: BB 00 00                              mov bx, 0
-[ 193]    02BA: C7 06 B0 01 00 00                     mov aprxDec, 0
-[ 194]        :                                       
-[ 195]        :                                       ; The result is the lower round of a floating point number
-[ 196]    02C0:                                       fnshAvrgSqrt:
+[ 186]    0289: 51                                    push cx ; Stack = source
+[ 187]    028A: 53                                    push bx ; Stack = aprx(current)
+[ 188]        :                                       
+[ 189]        :                                       ; Stack = aprx * 100
+[ 190]    028B: 8B 16 C3 01                           mov dx, precisionFactor
+[ 191]    028F: F7 E2                                 mul dx
+[ 192]    0291: 50                                    push ax
+[ 193]        :                                       
+[ 194]        :                                       ; aprox = ((source * 100 / aprx) + aprx * 100) / 2
+[ 195]    0292: A1 C3 01                              mov ax, precisionFactor
+[ 196]    0295: F7 E1                                 mul cx ; source * 100
 [ 197]        :                                       
-[ 198]        :                                       
-[ 199]        :                                       
-[ 200]    02C0: FF 36 B4 01                           push stackTmp
-[ 201]        :                                       
-[ 202]    02C4: C3                                    ret
+[ 198]    0297: F7 F3                                 div bx ; (source * 100 / aprx)
+[ 199]    0299: 8B C8                                 mov cx, ax
+[ 200]        :                                       
+[ 201]    029B: A1 C3 01                              mov ax, precisionFactor
+[ 202]    029E: F7 E3                                 mul bx
 [ 203]        :                                       
-[ 204]    02C5:                                       printSqrt:
-[ 205]        :                                       
-[ 206]    02C5: 53                                    push bx
-[ 207]    02C6: 50                                    push ax
-[ 208]        :                                       
-[ 209]    02C7: E8 70 00                              call printCRLF
-[ 210]        :                                       
-[ 211]    02CA: B4 09                                 mov ah, 09
-[ 212]    02CC: BA 95 01                              lea dx, resultMsg
-[ 213]    02CF: CD 21                                 int 21h
-[ 214]    02D1: BA 00 00                              mov dx, 0
-[ 215]        :                                       
-[ 216]    02D4: 58                                    pop ax
-[ 217]    02D5: 5B                                    pop bx
-[ 218]        :                                       
-[ 219]    02D6: E8 14 00                              call printNumber
-[ 220]        :                                       
-[ 221]    02D9: 81 3E AA 01 8F 02                     cmp source, 655
-[ 222]    02DF: 73 0B                                 jae fnshPrintSqrt
-[ 223]        :                                       
-[ 224]    02E1: B4 02                                 mov ah, 02
-[ 225]    02E3: B2 2E                                 mov dl, 46
-[ 226]    02E5: CD 21                                 int 21h
-[ 227]        :                                       
-[ 228]    02E7: 8B C3                                 mov ax, bx
-[ 229]    02E9: E8 01 00                              call printNumber
-[ 230]        :                                       
-[ 231]    02EC:                                       fnshPrintSqrt:
-[ 232]    02EC: C3                                    ret
-[ 233]        :                                       
-[ 234]        :                                       
-[ 235]    02ED:                                       printNumber:
-[ 236]        :                                       
-[ 237]    02ED: 3D 64 00                              cmp ax, 100
-[ 238]    02F0: 73 23                                 jae printThreeDigits
-[ 239]    02F2: 3D 0A 00                              cmp ax, 10
-[ 240]    02F5: 73 0A                                 jae printTwoDigits
-[ 241]        :                                       
-[ 242]        :                                       ; 1 digit:
-[ 243]    02F7:                                       printOneDigit:
-[ 244]        :                                       
-[ 245]    02F7: B4 02                                 mov ah, 02
-[ 246]    02F9: 8A D0                                 mov dl, al
-[ 247]    02FB: 80 C2 30                              add dl, 48
-[ 248]    02FE: CD 21                                 int 21h
-[ 249]    0300: C3                                    ret
-[ 250]        :                                       
-[ 251]        :                                       ; 2 digits:
-[ 252]    0301:                                       printTwoDigits:
-[ 253]    0301: D4 0A                                 aam
-[ 254]    0303: 80 C4 30                              add ah, 48
-[ 255]    0306: 04 30                                 add al, 48
-[ 256]        :                                       
-[ 257]    0308: 8B C8                                 mov cx, ax
-[ 258]    030A: B4 02                                 mov ah, 02
+[ 204]    02A0: 03 C1                                 add ax, cx ; (source * 100 / aprx) + aprx * 100)
+[ 205]    02A2: 83 D2 00                              adc dx, 0  ; (source * 100 / aprx) + aprx * 100) + Carry
+[ 206]        :                                       
+[ 207]    02A5: B9 02 00                              mov cx, 2
+[ 208]    02A8: F7 F1                                 div cx ; AX = ((source * 100 / aprx) + aprx * 100) / 2
+[ 209]        :                                       
+[ 210]    02AA: 5B                                    pop bx ; BX = aprx * 100 lower
+[ 211]        :                                       
+[ 212]    02AB: 2B C3                                 sub ax, bx ; AX = (((source * 100 / aprx) + aprx * 100) / 2) - aprx * 100
+[ 213]        :                                       
+[ 214]    02AD: 5B                                    pop bx ; BX = aprx
+[ 215]    02AE: 59                                    pop cx ; CX = source
+[ 216]    02AF: 5A                                    pop dx ; DX = aprx(cache)
+[ 217]        :                                       
+[ 218]    02B0: 50                                    push ax ; Stack = aprx(decimal)
+[ 219]    02B1: 52                                    push dx
+[ 220]    02B2: 51                                    push cx
+[ 221]    02B3: 53                                    push bx
+[ 222]        :                                       
+[ 223]    02B4: EB B4                                 JMP calcLoop
+[ 224]        :                                       
+[ 225]        :                                       ; The result is an integer number
+[ 226]    02B6:                                       fnshSqrt:
+[ 227]    02B6: 8B C3                                 mov ax, bx ; AX = aprox(Sqrt)
+[ 228]    02B8: 5B                                    pop bx
+[ 229]    02B9: 33 DB                                 xor bx, bx ; BX = Sqrt(decimal)
+[ 230]    02BB: FF 36 B9 01                           push stackCacheLevel1
+[ 231]    02BF: C3                                    ret
+[ 232]        :                                       
+[ 233]        :                                       ; The result is a floating point number
+[ 234]    02C0:                                       fnshAvrgSqrt:
+[ 235]    02C0: 8B C3                                 mov ax, bx ; AX = aprox(Sqrt)
+[ 236]    02C2: 5B                                    pop bx ; BX = Sqrt(decimal)
+[ 237]    02C3: FF 36 B9 01                           push stackCacheLevel1
+[ 238]    02C7: C3                                    ret
+[ 239]        :                                       
+[ 240]        :                                       ; printString a String in Cout.
+[ 241]        :                                       ; @args: String pointer -> DX
+[ 242]    02C8:                                       printString:
+[ 243]        :                                       
+[ 244]    02C8: E8 7D 00                              call printCRLF
+[ 245]    02CB: B4 09                                 mov ah, 09
+[ 246]    02CD: CD 21                                 int 21h
+[ 247]    02CF: BA 00 00                              mov dx, 0
+[ 248]    02D2: C3                                    ret
+[ 249]        :                                       
+[ 250]        :                                       ; printString a 16Bit-Integer + 8Bit-Precision(decimal) Number
+[ 251]        :                                       ;@args: Number -> AX, Precision -> BX
+[ 252]    02D3:                                       printFloat:
+[ 253]        :                                       
+[ 254]    02D3: E8 0C 00                              call printNumber
+[ 255]        :                                       
+[ 256]    02D6: B4 02                                 mov ah, 02
+[ 257]    02D8: B2 2E                                 mov dl, 46
+[ 258]    02DA: CD 21                                 int 21h
 [ 259]        :                                       
-[ 260]    030C: 8A D5                                 mov dl, ch
-[ 261]    030E: CD 21                                 int 21h
+[ 260]    02DC: 8B C3                                 mov ax, bx
+[ 261]    02DE: E8 01 00                              call printNumber
 [ 262]        :                                       
-[ 263]        :                                       
-[ 264]        :                                       
-[ 265]    0310: 8A D1                                 mov dl, cl
-[ 266]    0312: CD 21                                 int 21h
-[ 267]    0314: C3                                    ret
-[ 268]        :                                       
-[ 269]        :                                       ; 3 digits:
-[ 270]    0315:                                       printThreeDigits:
-[ 271]    0315: 53                                    push bx
-[ 272]        :                                       
-[ 273]    0316: D4 0A                                 aam
-[ 274]    0318: 8A F0                                 mov dh, al
-[ 275]    031A: 8A C4                                 mov al, ah
-[ 276]    031C: B4 00                                 mov ah, 0
-[ 277]    031E: D4 0A                                 aam
-[ 278]        :                                       
-[ 279]    0320: 80 C4 30                              add ah, 48
-[ 280]    0323: 04 30                                 add al, 48
-[ 281]    0325: 80 C6 30                              add dh, 48
-[ 282]        :                                       
-[ 283]    0328: 8B C8                                 mov cx, ax
-[ 284]    032A: B4 02                                 mov ah, 02
-[ 285]        :                                       
-[ 286]    032C: 8A D5                                 mov dl, ch
-[ 287]    032E: CD 21                                 int 21h
-[ 288]        :                                       
-[ 289]    0330: 8A D1                                 mov dl, cl
-[ 290]    0332: CD 21                                 int 21h
-[ 291]        :                                       
-[ 292]    0334: 8A D6                                 mov dl, dh
-[ 293]    0336: CD 21                                 int 21h
-[ 294]        :                                       
-[ 295]    0338: 5B                                    pop bx
-[ 296]    0339: C3                                    ret
-[ 297]        :                                       
-[ 298]        :                                       ; Printing CRLF (carriage return + line feed)
-[ 299]    033A:                                       printCRLF:
-[ 300]        :                                       
-[ 301]    033A: B4 02                                 mov ah, 02
-[ 302]    033C: B2 0D                                 mov dl, 13
-[ 303]    033E: CD 21                                 int 21h
-[ 304]    0340: B2 0A                                 mov dl, 10
-[ 305]    0342: CD 21                                 int 21h
-[ 306]    0344: C3                                    ret
-[ 307]        :                                       
+[ 263]    02E1:                                       fnshprintFloat:
+[ 264]    02E1: C3                                    ret
+[ 265]        :                                       
+[ 266]        :                                       ; printString an Integer number.
+[ 267]        :                                       ;@args: Number -> AX
+[ 268]    02E2:                                       printNumber:
+[ 269]        :                                       
+[ 270]    02E2: E8 0A FF                              call saveState
+[ 271]        :                                       
+[ 272]    02E5: 3D 64 00                              cmp ax, 100
+[ 273]    02E8: 73 29                                 jae printThreeDigits
+[ 274]    02EA: 3D 0A 00                              cmp ax, 10
+[ 275]    02ED: 73 0D                                 jae printTwoDigits
+[ 276]        :                                       
+[ 277]        :                                       ; 1 digit:
+[ 278]    02EF:                                       printOneDigit:
+[ 279]        :                                       
+[ 280]    02EF: B4 02                                 mov ah, 02
+[ 281]    02F1: 8A D0                                 mov dl, al
+[ 282]    02F3: 80 C2 30                              add dl, 48
+[ 283]    02F6: CD 21                                 int 21h
+[ 284]        :                                       
+[ 285]    02F8: E8 01 FF                              call loadState
+[ 286]    02FB: C3                                    ret
+[ 287]        :                                       
+[ 288]        :                                       ; 2 digits:
+[ 289]    02FC:                                       printTwoDigits:
+[ 290]    02FC: D4 0A                                 aam
+[ 291]    02FE: 80 C4 30                              add ah, 48
+[ 292]    0301: 04 30                                 add al, 48
+[ 293]        :                                       
+[ 294]    0303: 8B C8                                 mov cx, ax
+[ 295]    0305: B4 02                                 mov ah, 02
+[ 296]        :                                       
+[ 297]    0307: 8A D5                                 mov dl, ch
+[ 298]    0309: CD 21                                 int 21h
+[ 299]        :                                       
+[ 300]    030B: 8A D1                                 mov dl, cl
+[ 301]    030D: CD 21                                 int 21h
+[ 302]        :                                       
+[ 303]    030F: E8 EA FE                              call loadState
+[ 304]    0312: C3                                    ret
+[ 305]        :                                       
+[ 306]        :                                       ; 3 digits:
+[ 307]    0313:                                       printThreeDigits:
+[ 308]        :                                       
+[ 309]    0313: D4 0A                                 aam
+[ 310]    0315: 8A F0                                 mov dh, al
+[ 311]    0317: 8A C4                                 mov al, ah
+[ 312]    0319: B4 00                                 mov ah, 0
+[ 313]    031B: D4 0A                                 aam
+[ 314]        :                                       
+[ 315]    031D: 80 C4 30                              add ah, 48
+[ 316]    0320: 04 30                                 add al, 48
+[ 317]    0322: 80 C6 30                              add dh, 48
+[ 318]        :                                       
+[ 319]    0325: 8B C8                                 mov cx, ax
+[ 320]    0327: B4 02                                 mov ah, 02
+[ 321]        :                                       
+[ 322]    0329: 8A D5                                 mov dl, ch
+[ 323]    032B: CD 21                                 int 21h
+[ 324]        :                                       
+[ 325]    032D: 8A D1                                 mov dl, cl
+[ 326]    032F: CD 21                                 int 21h
+[ 327]        :                                       
+[ 328]    0331: 8A D6                                 mov dl, dh
+[ 329]    0333: CD 21                                 int 21h
+[ 330]        :                                       
+[ 331]    0335: E8 C4 FE                              call loadState
+[ 332]    0338: C3                                    ret
+[ 333]        :                                       
+[ 334]    0339:                                       verifyNumber:
+[ 335]        :                                       
+[ 336]    0339: 3D FE FF                              cmp ax, 65534
+[ 337]    033C: 76 09                                 jbe continue
+[ 338]        :                                       
+[ 339]        :                                       ; Overflow:
+[ 340]    033E: BA 41 01                              lea dx, overflowMsg
+[ 341]    0341: E8 84 FF                              call printString
+[ 342]    0344: E8 19 00                              call finish
+[ 343]        :                                       
+[ 344]        :                                       ; Continue:
+[ 345]    0347:                                       continue:
+[ 346]    0347: C3                                    ret
+[ 347]        :                                       
+[ 348]        :                                       ; Printing CRLF (carriage return + line feed)
+[ 349]    0348:                                       printCRLF:
+[ 350]        :                                       
+[ 351]    0348: E8 A4 FE                              call saveState
+[ 352]        :                                       
+[ 353]    034B: B4 02                                 mov ah, 02
+[ 354]    034D: B2 0D                                 mov dl, 13
+[ 355]    034F: CD 21                                 int 21h
+[ 356]    0351: B2 0A                                 mov dl, 10
+[ 357]    0353: CD 21                                 int 21h
+[ 358]        :                                       
+[ 359]    0355: E8 A4 FE                              call loadState
+[ 360]        :                                       
+[ 361]    0358: C3                                    ret
+[ 362]        :                                       
+[ 363]    0359:                                       clearScreen:
+[ 364]    0359: 32 E4                                 xor ah, ah
+[ 365]    035B: B0 03                                 mov al, 03h
+[ 366]    035D: CD 10                                 int 10h
+[ 367]    035F: C3                                    ret
+[ 368]        :                                       
+[ 369]    0360:                                       finish:
+[ 370]    0360: BA 8A 01                              lea dx, finishMsg
+[ 371]    0363: E8 62 FF                              call printString
+[ 372]        :                                       
+[ 373]    0366: B4 01                                 mov ah, 01
+[ 374]    0368: CD 21                                 int 21h
+[ 375]    036A: 3C 1B                                 cmp al, 27
+[ 376]    036C: 74 03 E9 54 FE                        jne start
+[ 377]    0371: C3                                    ret
+[ 378]        :                                       
+[ 379]    0372:                                       exit:
+[ 380]    0372: B4 4C                                 mov ah, 4Ch
+[ 381]    0374: CD 21                                 int 21h
+[ 382]    0376: C3                                    ret
+[ 383]        :                                       
  
 ===================================================================================================
  
